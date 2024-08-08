@@ -1169,7 +1169,9 @@ class PPOTrainer(BaseTrainer):
 
         if self.config.whiten_rewards:
             rewards = masked_whiten(rewards, mask, shift_mean=False)
-
+        # Comment: compute the advantage function for each token. 
+        # The advantage for token_t = delta + gamma*token_{t+1}
+        # therefore, you have to compute the advantage in the reverse order.
         for t in reversed(range(gen_len)):
             nextvalues = values[:, t + 1] if t < gen_len - 1 else 0.0
             delta = rewards[:, t] + self.config.gamma * nextvalues - values[:, t]
@@ -1227,6 +1229,8 @@ class PPOTrainer(BaseTrainer):
         pg_losses = -advantages * ratio
         pg_losses2 = -advantages * torch.clamp(ratio, 1.0 - self.config.cliprange, 1.0 + self.config.cliprange)
 
+        # Comment: the policy gradient loss is computed for each token, 
+        # and then averaged by masked_mean
         pg_loss = masked_mean(torch.max(pg_losses, pg_losses2), mask)
         pg_clipfrac = masked_mean(torch.gt(pg_losses2, pg_losses).float(), mask)
 
